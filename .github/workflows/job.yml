@@ -25,7 +25,6 @@ jobs:
         run: python -m playwright install --with-deps
       - name: Run python file
         run: make run
-        continue-on-error: true
       - name: Commit output files
         id: commit_output
         run: |
