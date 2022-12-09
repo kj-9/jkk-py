@@ -117,7 +117,7 @@ def main(argv):
             msg += f"{row[1][0]}: {row[1][1]}: {row[1][4]}: {row[1][5]}㎡: {row[1][6]}円\n"
         print(msg)
         
-        if DOES_SEND_LINE == "LINE":
+        if DOES_SEND_LINE:
             try:
                 print("Sending line message...")
                 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
