@@ -9,10 +9,14 @@ run:
 
 # for github actions workflow
 ga-commit:
-ifeq ($(MAKE_ENV),GITHUB_ACTIONS)
-	git config --local user.email "action@github.com"
-	git config --local user.name "GitHub Action"
-	git commit -m "Automatic data update" -a
+ifdef MAKE_ENV
+	ifeq ($(MAKE_ENV),GITHUB_ACTIONS)
+		git config --local user.email "action@github.com"
+		git config --local user.name "GitHub Action"
+		git commit -m "Automatic data update" -a
+	else
+		echo MAKE_ENV is: $(MAKE_ENV). not run.
+	endif
 else
-	echo MAKE_ENV is: $(MAKE_ENV). not run.
+	echo "MAKE_ENV is not set. not run."
 endif
