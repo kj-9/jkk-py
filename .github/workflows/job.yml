@@ -31,3 +31,10 @@ jobs:
         run: |
           MAKE_ENV=GITHUB_ACTIONS make ga-commit
         continue-on-error: true
+      # If committing files succeeded, push to main branch and deploy site
+      - name: Push
+        if: ${{ steps.commit_output.outcome == 'success' }}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: job
