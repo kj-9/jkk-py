@@ -5,7 +5,7 @@ SHELL=/bin/bash
 	ga-commit
 
 run:
-	python main.py "" true
+	python main.py true true
 
 # for github actions workflow
 ga-commit:
