@@ -109,7 +109,7 @@ def main(argv):
     )
 
     # newly added record
-    df_new = df_updated_state[df_updated_state.last_updated.isnull()]
+    df_new = df_updated_state[df_updated_state.last_updated_old.isnull()]
     
     if (0 < len(df_new.index)):
         msg = "新規募集がありました:\n"
@@ -122,7 +122,7 @@ def main(argv):
                 print("Sending line message...")
                 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
                 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
-                line_bot_api.broadcast(messages=TextSendMessage(text="Hello World!"))
+                line_bot_api.broadcast(messages=TextSendMessage(text=msg))
             except LineBotApiError as e:
                 print(e)
 
