@@ -22,7 +22,15 @@ jobs:
           cache-dependency-path: 'requirements.txt'
       - name: Install python packages
         run: make pip-install
-      - name: Ensure browsers are installed
+      - name: Setup Playwright
+        id: playwright-cache
+        uses: actions/cache@v3
+        with:
+          path: /home/runner/.cache
+          key: ${{ runner.os }}-playwright-cache
+          restore-keys: ${{ runner.os }}-playwright-cache # FIXME: browser version need to be upgrade according to some file
+      - name: Install Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: make playwright-install
       - name: Run python file
         run: make run
