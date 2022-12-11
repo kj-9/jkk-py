@@ -19,10 +19,9 @@ jobs:
         uses: actions/setup-python@v4 # python version is set default by .python-version file
       - name: Install python packages
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          make install
       - name: Ensure browsers are installed
-        run: python -m playwright install --with-deps chromium
+        run: make playwright-install
       - name: Run python file
         run: make run
       - name: Commit output files

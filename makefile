@@ -3,6 +3,21 @@ SHELL=/bin/bash
 .PHONY:
 	run
 	ga-commit
+	pip-upgrade
+	install
+	install-dev
+
+pip-upgrade:
+	python -m pip install --upgrade pip
+
+pip-install: pip-upgrade
+	pip install -r requirements.txt
+
+pip-install-dev: install
+	pip install -r requirements-dev.txt
+
+playwright-install:
+	python -m playwright install --with-deps chromium
 
 run:
 	python main.py true true
