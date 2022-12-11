@@ -143,7 +143,6 @@ def main(argv):
     # else:
     #   return a record with df_state.募集戸数,last_updated
 
-    # FIXME: save
     print(f"Write data as csv...")
     df_save = df_updated_state[
         df_updated_state.last_updated.notnull()
