@@ -27,17 +27,19 @@ def get_update(playwright: Playwright, headless: bool = False) -> pd.DataFrame:
 
     # input condition
     popup.locator("#chk_ku_all").check()  # 区部
-    popup.locator('input[value="34"]').check() #三鷹市
-    popup.locator('input[value="33"]').check() #武蔵野市
-    
+    popup.locator('input[value="34"]').check()  # 三鷹市
+    popup.locator('input[value="33"]').check()  # 武蔵野市
+
     popup.get_by_label("15分以内").check()  # 駅から15分
-    popup.locator('input[name="akiyaInitRM\\.akiyaRefM\\.bus"]').first.uncheck() #バス乗車時間を含まない
+    popup.locator(
+        'input[name="akiyaInitRM\\.akiyaRefM\\.bus"]'
+    ).first.uncheck()  # バス乗車時間を含まない
     popup.locator('select[name="akiyaInitRM\\.akiyaRefM\\.mensekiFrom"]').select_option(
         "50"
     )  # 50m2以上
     popup.locator('select[name="akiyaInitRM\\.akiyaRefM\\.yachinFrom"]').select_option(
         "70000"
-    )  # 7万以上    
+    )  # 7万以上
     popup.locator('select[name="akiyaInitRM\\.akiyaRefM\\.yachinTo"]').select_option(
         "120000"
     )  # 12万位内
@@ -60,12 +62,14 @@ def get_update(playwright: Playwright, headless: bool = False) -> pd.DataFrame:
 
     # transform
     dfs = pd.read_html(
-        table, header=0,
+        table,
+        header=0,
     )  # retuns list of df, length of extracted html tables
-    
 
     assert len(dfs) == 1  # only 1 df should be extracted
-    df_update = dfs[0].iloc[:, 1:10].astype(pd.StringDtype()) # slice list and filter columns
+    df_update = (
+        dfs[0].iloc[:, 1:10].astype(pd.StringDtype())
+    )  # slice list and filter columns
     df_update["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
 
     return df_update
@@ -73,10 +77,10 @@ def get_update(playwright: Playwright, headless: bool = False) -> pd.DataFrame:
 
 def main(argv):
 
-    #args
+    # args
     DOES_SEND_LINE = bool(argv[0])
     IS_HEADLESS = bool(argv[1])
-    
+
     print(f"Running with arguments: {DOES_SEND_LINE=},{IS_HEADLESS=}")
 
     with sync_playwright() as playwright:
@@ -110,13 +114,15 @@ def main(argv):
 
     # newly added record
     df_new = df_updated_state[df_updated_state.last_updated_old.isnull()]
-    
-    if (0 < len(df_new.index)):
+
+    if 0 < len(df_new.index):
         msg = "新規募集がありました:\n"
         for row in df_new.iterrows():
-            msg += f"{row[1][0]}: {row[1][1]}: {row[1][4]}: {row[1][5]}㎡: {row[1][6]}円\n"
+            msg += (
+                f"{row[1][0]}: {row[1][1]}: {row[1][4]}: {row[1][5]}㎡: {row[1][6]}円\n"
+            )
         print(msg)
-        
+
         if DOES_SEND_LINE:
             try:
                 print("Sending line message...")
@@ -129,18 +135,20 @@ def main(argv):
     # TODO: treat deleted
     # df_updated_state[df_updated_state.last_updated_x.isnull()]
     # and notify
-    
-    # TODO: treat existed but updated 募集戸数 
+
+    # TODO: treat existed but updated 募集戸数
     # if df_update.募集戸数 != df_state.募集戸数:
     #   return a record with df_update.募集戸数,last_updated
     #   and notify
-    # else: 
+    # else:
     #   return a record with df_state.募集戸数,last_updated
 
     # FIXME: save
     print(f"Write data as csv...")
-    df_save = df_updated_state[df_updated_state.last_updated.notnull()] # take rows from df_update
-    
+    df_save = df_updated_state[
+        df_updated_state.last_updated.notnull()
+    ]  # take rows from df_update
+
     def _update_ts(x):
         if pd.isnull(x.last_updated_old):
             return x.last_updated
@@ -148,13 +156,11 @@ def main(argv):
             return x.last_updated
         else:
             return x.last_updated_old
-    
+
     df_save["last_updated"] = df_save.apply(lambda x: _update_ts(x), axis=1)
-    df_save = df_save.drop(
-        columns=["募集戸数_old", "last_updated_old"]
-    )    
+    df_save = df_save.drop(columns=["募集戸数_old", "last_updated_old"])
     df_save.sort_values(by=list(df_save.columns)).to_csv("state.csv", index=False)
-    
+
     print("Success.")
 
 

@@ -20,8 +20,7 @@ jobs:
         with:
           cache: 'pip' # caching pip dependencies
       - name: Install python packages
-        run: |
-          make pip-install
+        run: make pip-install
       - name: Ensure browsers are installed
         run: make playwright-install
       - name: Run python file
