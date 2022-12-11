@@ -17,6 +17,8 @@ jobs:
           ref: job
       - name: Setup python
         uses: actions/setup-python@v4 # python version is set default by .python-version file
+        with:
+          cache: 'pip' # caching pip dependencies
       - name: Install python packages
         run: |
           make pip-install
