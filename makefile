@@ -1,11 +1,12 @@
 SHELL=/bin/bash
 
 .PHONY:
+	pip-upgrade
+	pip-install
+	pip-install-dev
+	playwright-install
 	run
 	ga-commit
-	pip-upgrade
-	install
-	install-dev
 
 pip-upgrade:
 	python -m pip install --upgrade pip
@@ -13,7 +14,7 @@ pip-upgrade:
 pip-install: pip-upgrade
 	pip install -r requirements.txt
 
-pip-install-dev: install
+pip-install-dev: pip-install
 	pip install -r requirements-dev.txt
 
 playwright-install:
@@ -24,14 +25,10 @@ run:
 
 # for github actions workflow
 ga-commit:
-ifdef MAKE_ENV
-	ifeq ($(MAKE_ENV),GITHUB_ACTIONS)
-		git config --local user.email "action@github.com"
-		git config --local user.name "GitHub Action"
-		git commit -m "Automatic data update" -a
-	else
-		echo MAKE_ENV is: $(MAKE_ENV). not run.
-	endif
+ifeq ($(MAKE_ENV),GITHUB_ACTIONS)
+	git config --local user.email "action@github.com"
+	git config --local user.name "GitHub Action"
+	git commit -m "Automatic data update" -a
 else
-	echo "MAKE_ENV is not set. not run."
+	echo MAKE_ENV is: $(MAKE_ENV). not run.
 endif
