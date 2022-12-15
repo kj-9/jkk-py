@@ -4,7 +4,6 @@ SHELL=/bin/bash
 	pip-upgrade
 	pip-install
 	pip-install-dev
-	playwright-install
 	run
 	ga-commit
 
@@ -16,9 +15,6 @@ pip-install: pip-upgrade
 
 pip-install-dev: pip-install
 	pip install -r requirements-dev.txt
-
-playwright-install:
-	python -m playwright install --with-deps chromium
 
 run:
 	python main.py true true

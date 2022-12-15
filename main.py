@@ -1,7 +1,8 @@
 import os
 import sys
+import re
 from collections import defaultdict
-from playwright.sync_api import Playwright, sync_playwright
+import requests
 import pandas as pd
 
 from linebot import LineBotApi
@@ -9,67 +10,78 @@ from linebot.models import TextSendMessage
 from linebot.exceptions import LineBotApiError
 
 
-def get_update(playwright: Playwright, headless: bool = False) -> pd.DataFrame:
+URL_BASE = "https://jhomes.to-kousya.or.jp/search/jkknet/service"
+URL_INIT = f"{URL_BASE}/akiyaJyoukenStartInit"
+URL_SEARCH = f"{URL_BASE}/akiyaJyoukenRef"
+URL_CHANGE_COUNT = f"{URL_BASE}/AKIYAchangeCount"
 
-    browser = playwright.chromium.launch(headless=headless)
-    context = browser.new_context()
-    page = context.new_page()
 
-    with page.expect_popup() as popup_info:
-        # first accesss
-        page.goto(
-            "https://jhomes.to-kousya.or.jp/search/jkknet/service/akiyaJyoukenStartInit"
-        )
+def get_update() -> pd.DataFrame:
 
-    # popuped page
-    popup = popup_info.value
-    popup.wait_for_load_state()
+    session = requests.Session()
 
-    # input condition
-    popup.locator("#chk_ku_all").check()  # 区部
-    popup.locator('input[value="34"]').check()  # 三鷹市
-    popup.locator('input[value="33"]').check()  # 武蔵野市
+    # get cookies
+    _ = session.get(URL_INIT)
 
-    popup.get_by_label("15分以内").check()  # 駅から15分
-    popup.locator(
-        'input[name="akiyaInitRM\\.akiyaRefM\\.bus"]'
-    ).first.uncheck()  # バス乗車時間を含まない
-    popup.locator('select[name="akiyaInitRM\\.akiyaRefM\\.mensekiFrom"]').select_option(
-        "50"
-    )  # 50m2以上
-    popup.locator('select[name="akiyaInitRM\\.akiyaRefM\\.yachinFrom"]').select_option(
-        "70000"
-    )  # 7万以上
-    popup.locator('select[name="akiyaInitRM\\.akiyaRefM\\.yachinTo"]').select_option(
-        "120000"
-    )  # 12万位内
+    # init search page to get tokens embedded
+    res = session.post(URL_INIT, data={"redirect": "true", "url": URL_INIT})
 
-    # click search botton
-    popup.get_by_alt_text("検索する").first.click()
-    popup.wait_for_load_state()
+    html = res.content.decode("shiftjis")
+    token = re.compile('name=token value="(.+)"').search(html).group(1)
+    abcde = re.compile('name="abcde" value="(.+)"').search(html).group(1)
 
-    # expand result
-    popup.get_by_role("combobox").select_option("50")
-    popup.wait_for_load_state()
+    # post search
+    res = session.post(
+        URL_SEARCH,
+        data={
+            "token": token,
+            "abcde": abcde,
+            "akiyaInitRM.akiyaRefM.requiredTime": "15",
+            "akiyaInitRM.akiyaRefM.yachinFrom": "0",
+            "akiyaInitRM.akiyaRefM.yachinTo": "120000",
+            "akiyaInitRM.akiyaRefM.mensekiFrom": "50",
+            "akiyaInitRM.akiyaRefM.mensekiTo": "9999.99",
+            "akiyaInitRM.akiyaRefM.bus": "0",
+            "akiyaInitRM.akiyaRefM.checks": [
+                "01",
+                "02",
+                "03",
+                "04",
+                "05",
+                "07",
+                "08",
+                "09",
+                "11",
+                "18",
+                "10",
+                "12",
+                "13",
+                "14",
+                "15",
+                "16",
+                "17",
+                "19",
+                "20",
+                "21",
+                "22",
+                "23",
+                "34",
+                "33",
+            ],
+        },
+    )
+    # change search results shown to 50
+    res = session.post(
+        URL_CHANGE_COUNT,
+        data={"token": token, "abcde": abcde, "akiyaRefRM.showCount": 50},
+    )
 
-    # scrape table
-    result_selector = "body > div:nth-child(1) > table:nth-child(1) > tbody > tr:nth-child(2) > td > form > table > tbody > tr:nth-child(11) > td"
-    table = popup.locator(result_selector).inner_html()
-
-    # close
-    context.close()
-    browser.close()
-
-    # transform
-    dfs = pd.read_html(
-        table,
-        header=0,
-    )  # retuns list of df, length of extracted html tables
-
-    assert len(dfs) == 1  # only 1 df should be extracted
+    # extract and transform table to df
     df_update = (
-        dfs[0].iloc[:, 1:10].astype(pd.StringDtype())
-    )  # slice list and filter columns
+        pd.read_html(res.content.decode("shiftjis"), header=0)[6]
+        .iloc[:, 1:10]
+        .astype(pd.StringDtype())
+    )
     df_update["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
 
     return df_update
@@ -79,12 +91,9 @@ def main(argv):
 
     # args
     DOES_SEND_LINE = bool(argv[0])
-    IS_HEADLESS = bool(argv[1])
+    print(f"Running with arguments: {DOES_SEND_LINE=}")
 
-    print(f"Running with arguments: {DOES_SEND_LINE=},{IS_HEADLESS=}")
-
-    with sync_playwright() as playwright:
-        df_update = get_update(playwright, IS_HEADLESS)
+    df_update = get_update()
 
     df_state = pd.read_csv(
         "state.csv",
