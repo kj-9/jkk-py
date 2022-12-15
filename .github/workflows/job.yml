@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          ref: job
       - name: Setup python
         uses: actions/setup-python@v4 # python version is set default by .python-version file
         with:
