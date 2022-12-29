@@ -8,7 +8,7 @@ import requests
 from linebot import LineBotApi
 from linebot.exceptions import LineBotApiError
 from linebot.models import TextSendMessage
-from prefect import flow, task
+from prefect import flow, get_run_logger, task
 
 
 @task
@@ -120,6 +120,8 @@ def transform_data(res: requests.Response) -> pd.DataFrame:
 
 @task
 def send_message(df_updated: pd.DataFrame, send_line: bool):
+    logger = get_run_logger()
+
     # TODO: treat deleted
     # df_updated[df_updated.last_updated_x.isnull()]
     # and notify
@@ -140,21 +142,22 @@ def send_message(df_updated: pd.DataFrame, send_line: bool):
             msg += (
                 f"{row[1][0]}: {row[1][1]}: {row[1][4]}: {row[1][5]}㎡: {row[1][6]}円\n"
             )
-        print(msg)
+        logger.info(msg)
 
         if send_line:
             try:
-                print("Sending line message...")
+                logger.info("Sending line message...")
                 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
                 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
                 line_bot_api.broadcast(messages=TextSendMessage(text=msg))
             except LineBotApiError as e:
-                print(e)
+                logger.error(e)
 
 
 @task
 def save_data(df_updated: pd.DataFrame):
-    print(f"Write data as csv...")
+    logger = get_run_logger()
+    logger.info(f"Write data as csv...")
     df_save = df_updated[df_updated.last_updated.notnull()]  # take rows from df_update
 
     def _update_ts(x):
