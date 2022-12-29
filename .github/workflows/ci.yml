@@ -15,7 +15,9 @@ jobs:
         uses: actions/setup-python@v4 # python version is set default by .python-version file
         with:
           cache: 'pip' # caching pip dependencies
-          cache-dependency-path: 'requirements.txt'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.tx'
 
       - name: Install python packages
         run: make pip-install && make pip-install-dev
