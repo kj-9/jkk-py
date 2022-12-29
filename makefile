@@ -1,9 +1,6 @@
 SHELL=/bin/bash
 PREFECT_LOGIN_OPTS=
 
-ifdef PREFECT_API_KEY
-PREFECT_LOGIN_OPTS=--key $(PREFECT_API_KEY)
-endif
 
 .PHONY:
 	pip-upgrade
