@@ -170,8 +170,14 @@ def save_data(df_updated: pd.DataFrame):
     df_save.sort_values(by=list(df_save.columns)).to_csv("state.csv", index=False)
 
 
-@flow(version=os.getenv("GIT_COMMIT_SHA"))
+@flow(name="jkk-notify", version=os.getenv("GIT_COMMIT_SHA"))
 def main(DOES_SEND_LINE: bool):
+    """jkk notifyer: https://github.com/kj-9/jkk-py
+
+    Args:
+        DOES_SEND_LINE (bool): does send line message if new rooms are available.
+    """
+
     res = fetch_data()
     df_updated = transform_data(res)
 
