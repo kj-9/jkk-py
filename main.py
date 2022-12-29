@@ -8,14 +8,16 @@ import requests
 from linebot import LineBotApi
 from linebot.exceptions import LineBotApiError
 from linebot.models import TextSendMessage
-
-URL_BASE = "https://jhomes.to-kousya.or.jp/search/jkknet/service"
-URL_INIT = f"{URL_BASE}/akiyaJyoukenStartInit"
-URL_SEARCH = f"{URL_BASE}/akiyaJyoukenRef"
-URL_CHANGE_COUNT = f"{URL_BASE}/AKIYAchangeCount"
+from prefect import flow, task
 
 
-def get_update() -> pd.DataFrame:
+@task
+def fetch_data():
+
+    URL_BASE = "https://jhomes.to-kousya.or.jp/search/jkknet/service"
+    URL_INIT = f"{URL_BASE}/akiyaJyoukenStartInit"
+    URL_SEARCH = f"{URL_BASE}/akiyaJyoukenRef"
+    URL_CHANGE_COUNT = f"{URL_BASE}/AKIYAchangeCount"
 
     session = requests.Session()
 
@@ -75,26 +77,21 @@ def get_update() -> pd.DataFrame:
         data={"token": token, "abcde": abcde, "akiyaRefRM.showCount": 50},
     )
 
+    return res
+
+
+@task
+def transform_data(res: requests.Response) -> pd.DataFrame:
+
     # extract and transform table to df
-    df_update = (
+    df_fetched = (
         pd.read_html(res.content.decode("shiftjis"), header=0)[6]
         .iloc[:, 1:10]
-        .astype(pd.StringDtype())
+        .astype(pd.StringDtype())  # for using as join keys
     )
-    df_update["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
+    df_fetched["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
 
-    return df_update
-
-
-def main(argv):
-
-    # args
-    DOES_SEND_LINE = bool(argv[0])
-    print(f"Running with arguments: {DOES_SEND_LINE=}")
-
-    df_update = get_update()
-
-    df_state = pd.read_csv(
+    df_saved = pd.read_csv(
         "state.csv",
         dtype=defaultdict(pd.StringDtype),
         parse_dates=["last_updated"],
@@ -102,10 +99,8 @@ def main(argv):
     )
 
     # TODO: check join key is unique and not null
-    # df_update left join df_state
-    # FIXME: You are trying to merge on float64 and object columns. need to cast as string?
-    df_updated_state = df_update.merge(
-        df_state,
+    df_updated = df_fetched.merge(
+        df_saved,
         how="outer",
         on=[
             "住宅名",
@@ -120,28 +115,13 @@ def main(argv):
         suffixes=("", "_old"),
     )
 
-    # newly added record
-    df_new = df_updated_state[df_updated_state.last_updated_old.isnull()]
+    return df_updated
 
-    if 0 < len(df_new.index):
-        msg = "新規募集がありました:\n"
-        for row in df_new.iterrows():
-            msg += (
-                f"{row[1][0]}: {row[1][1]}: {row[1][4]}: {row[1][5]}㎡: {row[1][6]}円\n"
-            )
-        print(msg)
 
-        if DOES_SEND_LINE:
-            try:
-                print("Sending line message...")
-                LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-                line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
-                line_bot_api.broadcast(messages=TextSendMessage(text=msg))
-            except LineBotApiError as e:
-                print(e)
-
+@task
+def send_message(df_updated: pd.DataFrame, send_line: bool):
     # TODO: treat deleted
-    # df_updated_state[df_updated_state.last_updated_x.isnull()]
+    # df_updated[df_updated.last_updated_x.isnull()]
     # and notify
 
     # TODO: treat existed but updated 募集戸数
@@ -151,10 +131,31 @@ def main(argv):
     # else:
     #   return a record with df_state.募集戸数,last_updated
 
+    # newly added record
+    df_new = df_updated[df_updated.last_updated_old.isnull()]
+
+    if 0 < len(df_new.index):
+        msg = "新規募集がありました:\n"
+        for row in df_new.iterrows():
+            msg += (
+                f"{row[1][0]}: {row[1][1]}: {row[1][4]}: {row[1][5]}㎡: {row[1][6]}円\n"
+            )
+        print(msg)
+
+        if send_line:
+            try:
+                print("Sending line message...")
+                LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
+                line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+                line_bot_api.broadcast(messages=TextSendMessage(text=msg))
+            except LineBotApiError as e:
+                print(e)
+
+
+@task
+def save_data(df_updated: pd.DataFrame):
     print(f"Write data as csv...")
-    df_save = df_updated_state[
-        df_updated_state.last_updated.notnull()
-    ]  # take rows from df_update
+    df_save = df_updated[df_updated.last_updated.notnull()]  # take rows from df_update
 
     def _update_ts(x):
         if pd.isnull(x.last_updated_old):
@@ -168,8 +169,15 @@ def main(argv):
     df_save = df_save.drop(columns=["募集戸数_old", "last_updated_old"])
     df_save.sort_values(by=list(df_save.columns)).to_csv("state.csv", index=False)
 
-    print("Success.")
+
+@flow(version=os.getenv("GIT_COMMIT_SHA"))
+def main(DOES_SEND_LINE: bool):
+    res = fetch_data()
+    df_updated = transform_data(res)
+
+    send_message(df_updated, DOES_SEND_LINE)
+    save_data(df_updated)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(bool(sys.argv[1:]))
