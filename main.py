@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import sys
@@ -178,19 +179,21 @@ def save_data(df_updated: pd.DataFrame):
 
 
 @flow(name="jkk-notify", version=os.getenv("GIT_COMMIT_SHA"))
-def main(DOES_SEND_LINE: bool):
+def main(send_line: bool):
     """jkk notifyer: https://github.com/kj-9/jkk-py
 
     Args:
-        DOES_SEND_LINE (bool): does send line message if new rooms are available.
+        send_line (bool): does send line message if new rooms are available.
     """
 
     res = fetch_data()
     df_updated = transform_data(res)
 
-    send_message(df_updated, DOES_SEND_LINE)
+    send_message(df_updated, send_line)
     save_data(df_updated)
 
 
 if __name__ == "__main__":
-    main(bool(sys.argv[1:]))
+
+    args = json.loads(sys.argv[1])
+    main(**args)
