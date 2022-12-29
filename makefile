@@ -33,3 +33,6 @@ ifeq ($(MAKE_ENV),GITHUB_ACTIONS)
 else
 	echo MAKE_ENV is: $(MAKE_ENV). not run.
 endif
+
+pre-commit:
+	pre-commit run --all-files --show-diff-on-failure

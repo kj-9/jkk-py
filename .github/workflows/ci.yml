@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Setup python
+        uses: actions/setup-python@v4 # python version is set default by .python-version file
+        with:
+          cache: 'pip' # caching pip dependencies
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Install python packages
+        run: make pip-install && make pip-install-dev
+
+      - name: Run pre-commit
+        run: make pre-commit
