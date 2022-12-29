@@ -1,3 +1,11 @@
 {
-    "python.formatting.provider": "black"
+    "python.formatting.provider": "black",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--max-line-length",
+        "88",
+        "--max-complexity",
+        "10"
+    ]
 }
