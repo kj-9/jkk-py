@@ -1,4 +1,4 @@
-name: Scrape and notify
+name: run flow
 on:
   schedule:
     - cron: "*/5 0-14,21-23 * * *" # UTC
@@ -8,28 +8,34 @@ env:
   LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
 
 jobs:
-  job:
+  run-flow:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
       - name: Setup python
         uses: actions/setup-python@v4 # python version is set default by .python-version file
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: 'requirements.txt'
+
       - name: Install python packages
         run: make pip-install
+
       - name: Login prefect cloud
         run: make prefect-login PREFECT_LOGIN_OPTS="--key ${{ secrets.PREFECT_API_KEY }} --workspace ${{ secrets.PREFECT_WORKSPACE }}"
+
       - name: Run python file
         run: make run
+
       - name: Commit output files
         id: commit_output
         run: |
           MAKE_ENV=GITHUB_ACTIONS make ga-commit
         continue-on-error: true
       # If committing files succeeded, push to main branch and deploy site
+
       - name: Push
         if: ${{ steps.commit_output.outcome == 'success' }}
         uses: ad-m/github-push-action@master
