@@ -1,4 +1,9 @@
 SHELL=/bin/bash
+PREFECT_LOGIN_OPTS=
+
+ifdef PREFECT_API_KEY
+PREFECT_LOGIN_OPTS=--key $(PREFECT_API_KEY)
+endif
 
 .PHONY:
 	pip-upgrade
@@ -15,6 +20,9 @@ pip-install: pip-upgrade
 
 pip-install-dev: pip-install
 	pip install -r requirements-dev.txt
+
+prefect-login:
+	prefect cloud login $(PREFECT_LOGIN_OPTS)
 
 run:
 	python main.py true true
