@@ -162,18 +162,17 @@ def send_message(df_updated: pd.DataFrame, send_line: bool):
 @task
 def save_data(df_updated: pd.DataFrame):
     logger = get_run_logger()
-    logger.info(f"Write data as csv...")
+    logger.info("Write data as csv...")
     df_save = df_updated[df_updated.last_updated.notnull()]  # take rows from df_update
 
     def _update_ts(x):
         if pd.isnull(x.last_updated_old):
             return x.last_updated
-        elif x.募集戸数 != x.募集戸数_old:
+        if x.募集戸数 != x.募集戸数_old:
             return x.last_updated
-        else:
-            return x.last_updated_old
+        return x.last_updated_old
 
-    df_save["last_updated"] = df_save.apply(lambda x: _update_ts(x), axis=1)
+    df_save["last_updated"] = df_save.apply(_update_ts, axis=1)
     df_save = df_save.drop(columns=["募集戸数_old", "last_updated_old"])
     df_save.sort_values(by=list(df_save.columns)).to_csv("state.csv", index=False)
 
