@@ -147,8 +147,12 @@ def send_message(df_updated: pd.DataFrame, send_line: bool):
         if send_line:
             try:
                 logger.info("Sending line message...")
-                LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-                line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+
+                from prefect.blocks.system import Secret
+
+                token = Secret.load("jkk-notify-line-channel-access-token")
+
+                line_bot_api = LineBotApi(token.get())
                 line_bot_api.broadcast(messages=TextSendMessage(text=msg))
             except LineBotApiError as e:
                 logger.error(e)
