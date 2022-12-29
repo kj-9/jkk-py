@@ -78,15 +78,15 @@ def fetch_data():
         data={"token": token, "abcde": abcde, "akiyaRefRM.showCount": 50},
     )
 
-    return res
+    return res.content.decode("shiftjis")
 
 
 @task
-def transform_data(res: requests.Response) -> pd.DataFrame:
+def transform_data(html: str) -> pd.DataFrame:
 
     # extract and transform table to df
     df_fetched = (
-        pd.read_html(res.content.decode("shiftjis"), header=0)[6]
+        pd.read_html(html, header=0)[6]
         .iloc[:, 1:10]
         .astype(pd.StringDtype())  # for using as join keys
     )
@@ -184,6 +184,9 @@ def main(send_line: bool):
     Args:
         send_line (bool): does send line message if new rooms are available.
     """
+
+    logger = get_run_logger()
+    logger.info(f"Parameters are set: {send_line=}")
 
     res = fetch_data()
     df_updated = transform_data(res)

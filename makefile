@@ -22,7 +22,10 @@ prefect-login:
 	prefect cloud login $(PREFECT_LOGIN_OPTS)
 
 run:
-	python main.py true true
+	python main.py '{"send_line": true}'
+
+run-silent:
+	python main.py '{"send_line": false}'
 
 # for github actions workflow
 ga-commit:
