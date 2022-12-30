@@ -191,8 +191,8 @@ def main(send_line: bool):
     res = fetch_data()
     df_updated = transform_data(res)
 
-    send_message(df_updated, send_line)
-    save_data(df_updated)
+    send_message.submit(df_updated, send_line)
+    save_data.submit(df_updated)
 
 
 if __name__ == "__main__":
