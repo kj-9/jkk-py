@@ -113,7 +113,7 @@ def transform_data(html: str) -> pd.DataFrame:
     df_fetched_flt = df_fetched[~df_fetched["住宅名"].isin(exclude_lst)]
     logger.info(
         f"Excluded {len(df_fetched) - len(df_fetched_flt)} records"
-        "from fetched dataset."
+        " from fetched dataset."
     )
 
     df_saved = pd.read_csv(
