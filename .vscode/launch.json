@@ -11,7 +11,17 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["", ""]
+            "args": ["--{'send_line': false}"]
+        },
+        {
+            "name": "Python: current file",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--{'send_line': false}"]
         }
+
     ]
 }
