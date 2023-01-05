@@ -83,6 +83,7 @@ def fetch_data():
 
 @task
 def transform_data(html: str) -> pd.DataFrame:
+    logger = get_run_logger()
 
     # extract and transform table to df
     df_fetched = (
@@ -92,6 +93,28 @@ def transform_data(html: str) -> pd.DataFrame:
     )
     df_fetched["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
 
+    # exclude record
+    exclude_lst = [
+        "コーシャハイム亀戸七丁目",
+        "コーシャハイム光が丘第一",
+        "コーシャハイム光が丘第三",
+        "コーシャハイム坂下",
+        "コーシャハイム大森東",
+        "コーシャハイム清新",
+        "コーシャハイム志村",
+        "コーシャハイム白鬚東",
+        "トミンハイム南六郷二丁目",
+        "トミンハイム舟渡二丁目",
+        "トミンハイム船堀三丁目",
+        "亀戸九丁目",
+    ]
+
+    df_fetched_flt = df_fetched[~df_fetched["住宅名"].isin(exclude_lst)]
+    logger.info(
+        f"Excluded {len(df_fetched) - len(df_fetched_flt)} records"
+        "from fetched dataset."
+    )
+
     df_saved = pd.read_csv(
         "state.csv",
         dtype=defaultdict(pd.StringDtype),
@@ -100,7 +123,7 @@ def transform_data(html: str) -> pd.DataFrame:
     )
 
     # TODO: check join key is unique and not null
-    df_updated = df_fetched.merge(
+    df_updated = df_fetched_flt.merge(
         df_saved,
         how="outer",
         on=[
