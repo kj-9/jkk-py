@@ -13,12 +13,13 @@ from prefect import flow, get_run_logger, task
 
 
 @task
-def fetch_data():
+def fetch_htmls(search_names: list[str]) -> list[str]:
+
+    logger = get_run_logger()
 
     URL_BASE = "https://jhomes.to-kousya.or.jp/search/jkknet/service"
     URL_INIT = f"{URL_BASE}/akiyaJyoukenStartInit"
     URL_SEARCH = f"{URL_BASE}/akiyaJyoukenRef"
-    URL_CHANGE_COUNT = f"{URL_BASE}/AKIYAchangeCount"
 
     session = requests.Session()
 
@@ -32,89 +33,53 @@ def fetch_data():
     token = re.compile('name=token value="(.+)"').search(html).group(1)
     abcde = re.compile('name="abcde" value="(.+)"').search(html).group(1)
 
-    # post search
-    res = session.post(
-        URL_SEARCH,
-        data={
-            "token": token,
-            "abcde": abcde,
-            "akiyaInitRM.akiyaRefM.requiredTime": "15",
-            "akiyaInitRM.akiyaRefM.yachinFrom": "0",
-            "akiyaInitRM.akiyaRefM.yachinTo": "120000",
-            "akiyaInitRM.akiyaRefM.mensekiFrom": "50",
-            "akiyaInitRM.akiyaRefM.mensekiTo": "9999.99",
-            "akiyaInitRM.akiyaRefM.bus": "0",
-            "akiyaInitRM.akiyaRefM.checks": [
-                "01",
-                "02",
-                "03",
-                "04",
-                "05",
-                "07",
-                "08",
-                "09",
-                "11",
-                "18",
-                "10",
-                "12",
-                "13",
-                "14",
-                "15",
-                "16",
-                "17",
-                "19",
-                "20",
-                "21",
-                "22",
-                "23",
-                "34",
-                "33",
-            ],
-        },
-    )
-    # change search results shown to 50
-    res = session.post(
-        URL_CHANGE_COUNT,
-        data={"token": token, "abcde": abcde, "akiyaRefRM.showCount": 50},
-    )
+    htmls = []
+    for search_name in search_names:
+        # post search"
+        res = session.post(
+            URL_SEARCH,
+            data={
+                "token": token,
+                "abcde": abcde,
+                "akiyaInitRM.akiyaRefM.jyutakuKanaName": search_name.encode("cp932"),
+                "akiyaInitRM.akiyaRefM.yachinFrom": "0",
+                "akiyaInitRM.akiyaRefM.yachinTo": "999999999",
+                "akiyaInitRM.akiyaRefM.mensekiFrom": "0",
+                "akiyaInitRM.akiyaRefM.mensekiTo": "9999.99",
+            },
+        )
 
-    return res.content.decode("shiftjis")
+        logger.info("Response received from server.")
+        logger.info(f"{search_name=}, {res.request.body=}")
+
+        html = res.content.decode("shiftjis")
+
+        if "ご希望の住宅、またはご希望の条件の空室はございませんでした。" in html:
+            logger.info("There is no Search result.")
+            continue
+        else:
+            htmls.append(html)
+
+    return htmls
 
 
 @task
-def transform_data(html: str) -> pd.DataFrame:
-    logger = get_run_logger()
-
+def extract_data(html: str) -> pd.DataFrame:
     # extract and transform table to df
-    df_fetched = (
+
+    df = (
         pd.read_html(html, header=0)[6]
         .iloc[:, 1:10]
         .astype(pd.StringDtype())  # for using as join keys
     )
-    df_fetched["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
 
-    # exclude record
-    exclude_lst = [
-        "コーシャハイム亀戸七丁目",
-        "コーシャハイム光が丘第一",
-        "コーシャハイム光が丘第二",
-        "コーシャハイム光が丘第三",
-        "コーシャハイム坂下",
-        "コーシャハイム大森東",
-        "コーシャハイム清新",
-        "コーシャハイム志村",
-        "コーシャハイム白鬚東",
-        "トミンハイム南六郷二丁目",
-        "トミンハイム舟渡二丁目",
-        "トミンハイム船堀三丁目",
-        "亀戸九丁目",
-    ]
+    df["last_updated"] = pd.Timestamp.now("Asia/Tokyo")
 
-    df_fetched_flt = df_fetched[~df_fetched["住宅名"].isin(exclude_lst)]
-    logger.info(
-        f"Excluded {len(df_fetched) - len(df_fetched_flt)} records"
-        " from fetched dataset."
-    )
+    return df
+
+
+@task
+def update_data(df_fetched: pd.DataFrame) -> pd.DataFrame:
 
     df_saved = pd.read_csv(
         "state.csv",
@@ -124,7 +89,7 @@ def transform_data(html: str) -> pd.DataFrame:
     )
 
     # TODO: check join key is unique and not null
-    df_updated = df_fetched_flt.merge(
+    df_updated = df_fetched.merge(
         df_saved,
         how="outer",
         on=[
@@ -202,7 +167,7 @@ def save_data(df_updated: pd.DataFrame):
 
 
 @flow(name="jkk-notify", version=os.getenv("GIT_COMMIT_SHA"))
-def main(send_line: bool):
+def main(search_names: list[str], send_line: bool):
     """jkk notifyer: https://github.com/kj-9/jkk-py
 
     Args:
@@ -210,10 +175,16 @@ def main(send_line: bool):
     """
 
     logger = get_run_logger()
-    logger.info(f"Parameters are set: {send_line=}")
+    logger.info(f"Parameters are set: {locals()}")
 
-    res = fetch_data()
-    df_updated = transform_data(res)
+    htmls = fetch_htmls(search_names)
+
+    dfs = []
+    for html in htmls:
+        dfs.append(extract_data(html))
+
+    df_fetched = pd.concat(dfs)
+    df_updated = update_data(df_fetched)
 
     send_message.submit(df_updated, send_line)
     save_data.submit(df_updated)
