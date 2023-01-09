@@ -13,7 +13,7 @@ pip-upgrade:
 	python -m pip install --upgrade pip
 
 pip-install: pip-upgrade
-	pip install -r requirements.txt
+	pip install -r flow/notify/requirements.txt
 
 pip-install-dev: pip-install
 	pip install -r requirements-dev.txt
@@ -22,10 +22,10 @@ prefect-login:
 	prefect cloud login $(PREFECT_LOGIN_OPTS)
 
 run:
-	python main.py '{"send_line": true}'
+	python flow/notify/main.py '{"send_line": true}'
 
 run-silent:
-	python main.py '{"send_line": false}'
+	python flow/notify/main.py '{"send_line": false}'
 
 # for github actions workflow
 ga-commit:
