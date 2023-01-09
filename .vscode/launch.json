@@ -5,22 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: main.py",
-            "type": "python",
-            "request": "launch",
-            "program": "main.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": ["--{'send_line': false}"]
-        },
-        {
             "name": "Python: current file",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--{'send_line': false}"]
+            "args": ["{\"search_names\": [\"トミン\", \"コーシャ\", \"ソンザイシナイブッケン\"], \"send_line\": false}"]
         }
 
     ]
