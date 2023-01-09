@@ -16,11 +16,11 @@ jobs:
         with:
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
-            requirements.txt
+            flow/notify/requirements.txt
             requirements-dev.tx'
 
       - name: Install python packages
-        run: make pip-install && make pip-install-dev
+        run: make pip-install-dev
 
       - name: Run pre-commit
         run: make pre-commit
