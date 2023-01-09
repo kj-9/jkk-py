@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["{\"search_names\": [\"トミン\", \"コーシャ\", \"ソンザイシナイブッケン\"], \"send_line\": false}"]
+            "args": ["{\"send_line\": false}"]
         }
 
     ]

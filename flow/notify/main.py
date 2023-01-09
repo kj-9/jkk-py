@@ -13,13 +13,21 @@ from prefect import flow, get_run_logger, task
 
 
 @task
-def fetch_htmls(search_names: list[str]) -> list[str]:
+def fetch_htmls() -> list[str]:
 
-    logger = get_run_logger()
-
+    SEARCH_NAMES = [
+        "トミンタワーセンジュゴチョウメ",
+        "トミンタワーミナミセンジュヨンチョウメ",
+        "センターマチヤ",
+        "コーシャハイムチハヤ",
+        "トミンハイムミナミダイサンチョウメ",
+        "トミンハイムヨコカワイッチョウメ",
+    ]
     URL_BASE = "https://jhomes.to-kousya.or.jp/search/jkknet/service"
     URL_INIT = f"{URL_BASE}/akiyaJyoukenStartInit"
     URL_SEARCH = f"{URL_BASE}/akiyaJyoukenRef"
+
+    logger = get_run_logger()
 
     session = requests.Session()
 
@@ -34,7 +42,7 @@ def fetch_htmls(search_names: list[str]) -> list[str]:
     abcde = re.compile('name="abcde" value="(.+)"').search(html).group(1)
 
     htmls = []
-    for search_name in search_names:
+    for search_name in SEARCH_NAMES:
         # post search"
         res = session.post(
             URL_SEARCH,
@@ -82,7 +90,7 @@ def extract_data(html: str) -> pd.DataFrame:
 def update_data(df_fetched: pd.DataFrame) -> pd.DataFrame:
 
     df_saved = pd.read_csv(
-        "state.csv",
+        "flow/notify/state.csv",
         dtype=defaultdict(pd.StringDtype),
         parse_dates=["last_updated"],
         date_parser=lambda x: pd.Timestamp(x, tz="Asia/Tokyo"),
@@ -163,11 +171,13 @@ def save_data(df_updated: pd.DataFrame):
 
     df_save["last_updated"] = df_save.apply(_update_ts, axis=1)
     df_save = df_save.drop(columns=["募集戸数_old", "last_updated_old"])
-    df_save.sort_values(by=list(df_save.columns)).to_csv("state.csv", index=False)
+    df_save.sort_values(by=list(df_save.columns)).to_csv(
+        "flow/notify/state.csv", index=False
+    )
 
 
 @flow(name="jkk-notify", version=os.getenv("GIT_COMMIT_SHA"))
-def main(search_names: list[str], send_line: bool):
+def main(send_line: bool):
     """jkk notifyer: https://github.com/kj-9/jkk-py
 
     Args:
@@ -177,13 +187,30 @@ def main(search_names: list[str], send_line: bool):
     logger = get_run_logger()
     logger.info(f"Parameters are set: {locals()}")
 
-    htmls = fetch_htmls(search_names)
+    htmls = fetch_htmls()
 
     dfs = []
     for html in htmls:
         dfs.append(extract_data(html))
 
-    df_fetched = pd.concat(dfs)
+    df_fetched = (
+        pd.concat(dfs)
+        if dfs
+        else pd.DataFrame(
+            columns=[
+                "住宅名",
+                "地域",
+                "優先 種別",
+                "住宅種別",
+                "間取り",
+                "床面積 [m2]",
+                "家賃 [円]",
+                "共益費 [円]",
+                "募集戸数",
+                "last_updated",
+            ]
+        )
+    )
     df_updated = update_data(df_fetched)
 
     send_message.submit(df_updated, send_line)
